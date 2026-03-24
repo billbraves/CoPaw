@@ -128,6 +128,20 @@ def _create_file_block_support_formatter(
                     ):
                         extra_contents[block["id"]] = block["extra_content"]
 
+            # Convert file:// URLs to paths,
+            # TODO: remove this after AgentScope updated
+            for msg in msgs:
+                for block in msg.get_content_blocks():
+                    if block.get("type") == "audio":
+                        source = block.get("source")
+                        if (
+                            isinstance(source, dict)
+                            and source.get("type") == "url"
+                            and isinstance(source.get("url"), str)
+                            and source["url"].startswith("file://")
+                        ):
+                            source["url"] = _file_url_to_path(source["url"])
+
             messages = await super()._format(msgs)
 
             if extra_contents:
@@ -354,7 +368,10 @@ def _create_formatter_instance(
         base_formatter_class,
     )
     kwargs: dict[str, Any] = {}
-    if issubclass(base_formatter_class, OpenAIChatFormatter):
+    if issubclass(
+        base_formatter_class,
+        (OpenAIChatFormatter, GeminiChatFormatter),
+    ):
         kwargs["promote_tool_result_images"] = True
     return formatter_class(**kwargs)
 
